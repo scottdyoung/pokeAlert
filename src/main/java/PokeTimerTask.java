@@ -1,4 +1,5 @@
 import models.PokeResponse;
+import models.ScanResponse;
 import services.PokeDao;
 
 import java.util.Timer;
@@ -16,6 +17,8 @@ public class PokeTimerTask extends TimerTask {
     private int displayDuration;
     private int repollInterval;
     private int pollInterval;
+    private Timer timer;
+    private static String jobId;
 
     private PokeTimerTask(final PokeTimerTaskBuilder builder) {
         this.lat = builder.getLatitude();
@@ -34,24 +37,64 @@ public class PokeTimerTask extends TimerTask {
         this.lon = lon;
     }
 
+    public final PokeDao getPokeDao() {
+        return this.pokeDao;
+    }
+
+    public final float getLatitude() {
+        return this.lat;
+    }
+    public final float getLongitude() {
+        return this.lon;
+    }
+    public final int getDisplayDuration() {
+        return this.displayDuration;
+    }
+    public final int getRepollInterval() {
+        return this.repollInterval;
+    }
+    public final int getPollInterval() {
+        return this.pollInterval;
+    }
+
     public final void start() {
-        new Timer().scheduleAtFixedRate(this, 0, this.pollInterval);
+        this.timer = new Timer();
+        this.timer.scheduleAtFixedRate(this.copy(this), 0, this.pollInterval);
+    }
+
+    public final void runNow() {
+        if (null != this.timer) {
+            this.timer.cancel();
+            this.timer.purge();
+        }
+        this.start();
+    }
+
+    private PokeTimerTask copy(final PokeTimerTask task) {
+        return this.builder()
+                .pokeDao(task.getPokeDao())
+                .latitude(task.getLatitude())
+                .longitude(task.getLongitude())
+                .displayDuration(task.getDisplayDuration())
+                .repollInterval(task.getRepollInterval())
+                .pollInterval(task.getPollInterval())
+                .build();
     }
 
     @Override
     public void run() {
-        String dataId = null;
         try {
             try {
-                final String dataIdResponse = pokeDao.getDataId(lat, lon);
-                if (null != dataIdResponse) {
-                    dataId = dataIdResponse;
+                final ScanResponse scanResponse = pokeDao.getScanResponse(lat, lon);
+                if (null != scanResponse.getJobId()) {
+                    jobId = scanResponse.getJobId();
                 }
-                if (null != dataId) {
-                    PokeResponse response = pokeDao.getPokeData(lat, lon, dataId);
+
+                if (null != jobId) {
+                    PokeResponse response = pokeDao.getPokeData(lat, lon, jobId);
                     while (isWaitingForResults(response)) {
                         Thread.sleep(repollInterval);
-                        response = pokeDao.getPokeData(lat, lon, dataId);
+                        response = pokeDao.getPokeData(lat, lon, jobId);
                     }
                     if (response.getStatus().equals(SUCCESS)) {
                         final PokeDisplayList displayList = PokeDisplayList.fromPokeResponse(response);
@@ -85,7 +128,6 @@ public class PokeTimerTask extends TimerTask {
             ;
         }.start();
     }
-
 
     private void handleFailedRequest() {
         logger.warning("Request to the server returned an error");

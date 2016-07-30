@@ -126,6 +126,7 @@ public class PokeAlert extends JFrame {
                 setVisible(false);
                 pollingTask.setLatitude(form.getLatitude());
                 pollingTask.setLongitude(form.getLongitude());
+                pollingTask.runNow();
             }
         });
         mainPanel.add(this.buildCloseButtonPanel(), BorderLayout.EAST);

@@ -23,11 +23,6 @@ public class PokeDao {
     private static final Gson gson = new Gson();
     private static final Logger logger = Logger.getLogger(PokeDao.class.getName());
 
-    public String getDataId(final float lat, final float lon) throws IOException {
-        final ScanResponse response = this.getScanResponse(lat, lon);
-        return response.getJobId();
-    }
-
     public ScanResponse getScanResponse(final float lat, final float lon) throws IOException {
         final URL url = new URL(DATA_ID_URL + lat + "/" + lon);
         return gson.fromJson(this.getHtmlResponseAsString(url), ScanResponse.class);
